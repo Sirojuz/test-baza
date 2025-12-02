@@ -44,6 +44,6 @@ exports.delete = async (req, res) => {
     await Test.findByIdAndDelete({ _id: req.params.id });
     res.status(200).json({ succes: true, data: "Post deleted" });
   } catch {
-    res.status(500).json({ succes: false, data: error });
+    res.status(500).json({ succes: false, data: "DeleteIshlamadi" });
   }
 };

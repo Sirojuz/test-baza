@@ -1,84 +1,120 @@
+const Test = require("../model/testOne");
 const fs = require("fs");
-const docxParser = require("docx-parser");
-const test0ne = require("../model/testOne");
+const mammoth = require("mammoth");
 
+// WORD FILE UPLOAD → PARSE → DB SAVE
 exports.uploadWord = async (req, res) => {
   try {
-    const filePath = req.file.path;
-    res.json(filePath);
-    // docxParser.parseDocx(filePath, async (text) => {
-    //   const blocks = text.split(/\n\s*\n/).filter((b) => b.trim() !== "");
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ success: false, message: "File yuklanmadi!" });
+    }
 
-    //   const tests = [];
+    // Wordni o'qish
+    const result = await mammoth.extractRawText({ path: req.file.path });
+    const text = result.value;
+    const tests = parseWord(text);
 
-    //   for (let block of blocks) {
-    //     const lines = block.split("\n").map((l) => l.trim());
+    // DB ga saqlash
+    const saved = await Test.insertMany(tests);
 
-    //     const question = lines[0].replace(/^\d+\.\s*/, "");
+    fs.unlinkSync(req.file.path);
 
-    //     const options = [
-    //       lines[1].replace(/^A\)\s*/, ""),
-    //       lines[2].replace(/^B\)\s*/, ""),
-    //       lines[3].replace(/^C\)\s*/, ""),
-    //       lines[4].replace(/^D\)\s*/, ""),
-    //     ];
-
-    //     const correctLine = lines.find((l) => l.startsWith("Correct:"));
-    //     const correctLetter = correctLine.split(":")[1].trim();
-    //     const correctIndex = ["A", "B", "C", "D"].indexOf(correctLetter);
-
-    //     tests.push({ question, options, correctIndex });
-    //   }
-
-    //   const savedTests = await test0ne.insertMany(tests);
-
-    //   fs.unlinkSync(filePath);
-
-    //   return res.json({
-    //     success: true,
-    //     saved: savedTests.length,
-    //     data: savedTests,
-    //   });
-    // });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.json({
+      success: true,
+      totalSaved: saved.length,
+      tests: saved,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// exports.getAll = async (req, res) => {
-//   try {
-//     const tests = await test0ne.find();
-//     res.json({ success: true, data: tests });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// };
+// WORD PARSER FUNKSIYASI
+function parseWord(text) {
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
 
-// exports.update = async (req, res) => {
-//   try {
-//     const test = await test0ne.findByIdAndUpdate(req.params.id, req.body, {
-//       new: true,
-//     });
+  const tests = [];
+  let question = "";
+  let options = [];
 
-//     res.json({ success: true, data: test });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// };
+  for (let line of lines) {
+    if (/^\d+\./.test(line)) {
+      if (question && options.length === 4) {
+        tests.push(testBuilder(question, options));
+      }
+      question = line.replace(/^\d+\.\s*/, "");
+      options = [];
+    }
 
-// exports.delete = async (req, res) => {
-//   try {
-//     const test = await test0ne.findById(req.params.id);
+    if (/^[A-D]\)/i.test(line)) {
+      const isCorrect = line.includes("*");
+      const option = line
+        .replace("*", "")
+        .replace(/^[A-D]\)\s*/, "")
+        .trim();
+      options.push({ text: option, isCorrect });
+    }
+  }
 
-//     if (!test)
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "test0ne topilmadi" });
+  if (question && options.length === 4) {
+    tests.push(testBuilder(question, options));
+  }
 
-//     await test0ne.findByIdAndDelete(req.params.id);
+  return tests;
+}
 
-//     res.json({ success: true, message: "test0ne o‘chirildi" });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// };
+// WORD → MODEL FORMATIGA O‘GIRISH
+function testBuilder(question, opts) {
+  const optionTexts = opts.map((o) => o.text);
+  const correctIndex = opts.findIndex((o) => o.isCorrect);
+
+  return {
+    question,
+    options: optionTexts,
+    correctIndex,
+  };
+}
+
+// CRUD
+exports.getAll = async (req, res) => {
+  try {
+    const data = await Test.find();
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.create = async (req, res) => {
+  try {
+    const saved = await Test.create(req.body);
+    res.json({ success: true, data: saved });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.update = async (req, res) => {
+  try {
+    const updated = await Test.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.delete = async (req, res) => {
+  try {
+    await Test.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: "Test o'chirildi" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
