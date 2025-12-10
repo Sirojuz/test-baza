@@ -1,23 +1,36 @@
 const Test = require("../model/test");
+const mongoose = require("mongoose");
+
+function generateTestCode() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
 
 exports.create = async (req, res) => {
-  const { title, desc, start } = req.body;
+  try {
+    const { title, desc, duration } = req.body;
 
-  let result = new Test({
-    title: title,
-    desc: desc,
-    start: start,
-  });
+    // unikal 4 xonali kod yaratish
+    let testCode;
+    let exists = true;
 
-  await result
-    .save()
-    .then((data) => {
-      res.status(200).json({ succes: true, data: data });
-    })
-    .catch((err) => {
-      res.status(400).json({ succes: false, data: err });
+    while (exists) {
+      testCode = generateTestCode();
+      exists = await Test.findOne({ testCode });
+    }
+
+    const newTest = await Test.create({
+      title,
+      desc,
+      duration,
+      testCode, // yangi maydon
     });
+
+    res.json({ success: true, data: newTest });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 };
+
 exports.getAll = async (req, res) => {
   const result = await Test.find();
 
@@ -28,8 +41,52 @@ exports.getAll = async (req, res) => {
 };
 
 exports.getById = async (req, res) => {
-  const result = await Test.findById({ _id: req.params.id });
-  res.json(result);
+  try {
+    let id = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID noto'g'ri",
+      });
+    }
+
+    const test = await Test.findById(id);
+
+    if (!test) {
+      return res.status(404).json({
+        success: false,
+        message: "Test topilmadi",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: test,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+exports.getByCode = async (req, res) => {
+  try {
+    const test = await Test.findOne({ testCode: req.params.code });
+
+    if (!test) {
+      return res.status(404).json({
+        success: false,
+        message: "Test kod topilmadi!",
+      });
+    }
+
+    res.json({ success: true, data: test });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 };
 
 exports.delete = async (req, res) => {

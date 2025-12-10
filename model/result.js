@@ -2,7 +2,11 @@ const mongoose = require("mongoose");
 
 const resultSchema = new mongoose.Schema(
   {
-    studentId: { type: String, required: true },
+    studentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "user",
+      required: true,
+    },
 
     // Test mavzusi ID
     testId: {

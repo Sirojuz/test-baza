@@ -13,6 +13,9 @@ app.use(require("./router/test"));
 app.use(require("./router/testOne"));
 app.use(require("./router/result"));
 app.use(require("./router/attempt"));
+app.use(require("./router/user"));
+app.use(require("./router/admin"));
+app.use(require("./router/testWord"));
 
 mongodb();
 app.listen(PORT, () => {
