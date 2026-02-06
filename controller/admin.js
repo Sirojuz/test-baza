@@ -1,7 +1,7 @@
 const Admin = require("../model/admin");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { secret_key, time } = require("../config/config");
+require("dotenv").config();
 
 exports.register = async (req, res) => {
   try {
@@ -64,56 +64,73 @@ exports.login = async (req, res) => {
   try {
     const { phone, password } = req.body;
 
-    // Maydonlar bo‘sh bo‘lsa
     if (!phone || !password) {
-      return res.json({
+      return res.status(400).json({
         success: false,
         message: "Telefon va parol talab qilinadi!",
       });
     }
 
-    // Adminni topish
-    const admin = await Admin.findOne({ phone }).select({ password: 1 });
+    const admin = await Admin.findOne({ phone }).select(
+      "+password +role +name +phone",
+    );
 
-    if (!admin || admin === null) {
-      return res.json({
+    if (!admin) {
+      return res.status(404).json({
         success: false,
         message: "Foydalanuvchi mavjud emas!",
       });
     }
-    const isMatch = await bcrypt.compare(password, admin.password);
 
-    if (isMatch === false || !isMatch) {
-      return res.json({
+    if (!admin.password) {
+      return res.status(500).json({
+        success: false,
+        message:
+          "Admin paroli DBda yo'q (password field empty). Registerni tekshiring.",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(String(password), admin.password);
+
+    if (!isMatch) {
+      return res.status(401).json({
         success: false,
         message: "Noto‘g‘ri parol!",
       });
-    } else {
-      const token = jwt.sign(
-        { adminId: admin._id, role: admin.role },
-        secret_key,
-        {
-          expiresIn: time,
-        }
-      );
-      return res.json({ success: true, token: token });
     }
+
+    const token = jwt.sign(
+      { adminId: admin._id, role: admin.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "12h" },
+    );
+
+    return res.json({ success: true, token });
   } catch (error) {
-    return res.json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
 exports.decodeToken = async (req, res) => {
-  const { token } = req.headers;
-  jwt.verify(token, secret_key, async function (err, decode) {
-    if (err) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Noto'g'ri token" });
-    } else {
-      res.status(200).json({ success: true, decodedToken: decode });
+  try {
+    const raw =
+      req.headers.token ||
+      req.headers.authorization ||
+      req.headers.Authorization;
+
+    if (!raw) {
+      return res.status(401).json({ success: false, message: "Token yo‘q" });
     }
-  });
+
+    const token = String(raw).startsWith("Bearer ")
+      ? String(raw).slice(7)
+      : String(raw);
+
+    const decode = jwt.verify(token, process.env.JWT_SECRET);
+    return res.status(200).json({ success: true, decodedToken: decode });
+  } catch (err) {
+    return res.status(401).json({ success: false, message: "Noto'g'ri token" });
+  }
 };
 
 exports.delete = async (req, res) => {

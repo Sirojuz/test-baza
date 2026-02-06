@@ -4,7 +4,7 @@ const blockSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ["text", "image"],
+      enum: ["text", "image", "math"],
       required: true,
     },
     value: {

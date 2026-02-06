@@ -103,7 +103,7 @@ exports.downloadResultsWord = async (req, res) => {
                           children: [new Paragraph(String(item.grade))],
                         }),
                       ],
-                    })
+                    }),
                 ),
               ],
             }),
@@ -120,11 +120,11 @@ exports.downloadResultsWord = async (req, res) => {
     const buffer = await Packer.toBuffer(doc);
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=${safeFileName}_natijalar.docx`
+      `attachment; filename=${safeFileName}_natijalar.docx`,
     );
     res.setHeader(
       "Content-Type",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     );
     res.send(buffer);
   } catch (error) {

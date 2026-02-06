@@ -3,10 +3,8 @@ const router = express.Router();
 const Attempt = require("../model/attempt");
 const controller = require("../controller/attempt");
 
-// Testni boshlash (random savollar + attempt yaratish)
 router.post("/api/attempt/start", controller.startAttempt);
 router.delete("/api/attempt/delete/:id", controller.delete);
-// GET /api/attempt/:id → Attemptni olish
 router.get("/api/attempt/:id", async (req, res) => {
   try {
     const attempt = await Attempt.findById(req.params.id);

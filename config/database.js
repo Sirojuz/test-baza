@@ -7,7 +7,6 @@ module.exports = async function connectDB() {
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
     });
-
     console.log("MongoDB ishladi:", mongoUrl);
   } catch (error) {
     console.log("Error on connecting database:", error.message);
